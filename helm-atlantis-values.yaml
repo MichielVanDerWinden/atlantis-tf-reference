@@ -1,0 +1,207 @@
+## -------------------------- ##
+# Values to override for your instance.
+## -------------------------- ##
+
+## An option to override the atlantis url,
+##   if not using an ingress, set it to the external IP.
+atlantisUrl: https://atlantis.yourwebsite.com
+
+# Replace this with your own repo allowlist:
+orgAllowlist: github.com/{projectName}/*
+
+# If using a GitHub App, please enter your values as follows:
+githubApp:
+  id: xxxxxx
+  slug: github-app-slug
+
+# To specify AWS credentials to be mapped to ~/.aws or to aws.directory:
+aws:
+  credentials: |
+    [default]
+    role_arn=arn:aws:iam::xxxxxxxxxxxx:role/eks-role-ci
+    web_identity_token_file=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
+  config: |
+    [default]
+
+    [profile example]
+    role_arn = arn:aws:iam::xxxxxxxxxxxx:role/eks-role-ci-terraform
+    source_profile = default
+
+    [profile test]
+    role_arn = arn:aws:iam::xxxxxxxxxxxx:role/eks-role-ci-terraform
+    source_profile = default
+
+## -------------------------- ##
+# Default values for atlantis (override as needed).
+## -------------------------- ##
+
+## Use Server Side Repo Config,
+## ref: https://www.runatlantis.io/docs/server-side-repo-config.html
+## Example default configuration
+repoConfig: |
+  ---
+  repos:
+    - id: github.com/{projectName}/{slug}
+      allowed_overrides: []
+      workflow: infra
+  workflows:
+    infra:
+      plan:
+        steps:
+        - env:
+            # Unsetting this env variable as it breaks AWS_PROFILE otherwise.
+            # Probably fixed with https://github.com/hashicorp/go-getter/issues/313
+            name: AWS_WEB_IDENTITY_TOKEN_FILE
+            value: ""
+        - env:
+            # Unsetting this env variable as it breaks AWS_PROFILE otherwise.
+            # Probably fixed with https://github.com/hashicorp/go-getter/issues/313
+            name: AWS_ROLE_ARN
+            value: ""
+        - env:
+            name: AWS_PROFILE
+            command: 'echo $(echo $REPO_REL_DIR | cut -d "/" -f 2)'
+        - init
+        - plan
+      apply:
+        steps:
+        - env:
+            name: AWS_WEB_IDENTITY_TOKEN_FILE
+            value: ""
+        - env:
+            name: AWS_ROLE_ARN
+            value: ""
+        - env:
+            name: AWS_PROFILE
+            command: 'echo $(echo $REPO_REL_DIR | cut -d "/" -f 2)'
+        - apply
+
+# allowForkPRs enables atlantis to run on a fork Pull Requests
+allowForkPRs: false
+
+# allowDraftPRs enables atlantis to run on a draft Pull Requests
+allowDraftPRs: false
+
+# hidePrevPlanComments enables atlantis to hide previous plan comments
+hidePrevPlanComments: true
+
+# disableApply disables running `atlantis apply` regardless of which flags are sent with it
+disableApply: false
+
+# disableApplyAll disables running `atlantis apply` without any flags
+disableApplyAll: false
+
+# disableRepoLocking stops atlantis locking projects and or workspaces when running terraform
+disableRepoLocking: false
+
+# Use Diff Markdown Format for color coding diffs
+enableDiffMarkdownFormat: true
+
+# We only need to check every 60s since Atlantis is not a high-throughput service.
+livenessProbe:
+  enabled: true
+  periodSeconds: 60
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 5
+  scheme: HTTP
+readinessProbe:
+  enabled: true
+  periodSeconds: 60
+  initialDelaySeconds: 5
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 5
+  scheme: HTTP
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4141
+  loadBalancerIP: null
+
+podTemplate:
+  annotations: {}
+    # kube2iam example:
+    # iam.amazonaws.com/role: role-arn
+  labels: {}
+
+# It is not recommended to run atlantis as root
+statefulSet:
+  annotations: {}
+  labels: {}
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    fsGroup: 1000
+    runAsUser: 100
+    fsGroupChangePolicy: "OnRootMismatch"
+  priorityClassName: ""
+  updateStrategy: {}
+  # option to share process namespace with atlantis container
+  shareProcessNamespace: false
+
+## Optionally customize the terminationGracePeriodSeconds
+# terminationGracePeriodSeconds: 60
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  apiVersion: ""
+  annotations: {}
+  path: /
+  pathType: Prefix
+  host: atlantis.yourwebsite.com
+
+resources:
+  requests:
+    memory: 300Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: null
+
+## Embedded data volume & volumeMount (default working)
+volumeClaim:
+  enabled: true
+  ## Disk space for to check out repositories
+  dataStorage: 5Gi
+  ## Storage class name (if possible, use a resizable one)
+  # storageClassName: ""
+
+replicaCount: 1
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+              - linux
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+              - arm64
+              - amd64
+
+serviceAccount:
+  # Specifies whether a ServiceAccount should be created
+  create: true
+  # Set the `automountServiceAccountToken` field on the pod template spec
+  # If false, no kubernetes service account token will be mounted to the pod
+  mount: true
+  # The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: eks-role-ci
+  # Annotations for the Service Account
+  # Example:
+  #
+  # annotations:
+  #   annotation1: value
+  #   annotation2: value
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::xxxxxxxxxxxx:role/eks-role-ci
