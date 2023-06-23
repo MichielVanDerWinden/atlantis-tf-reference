@@ -28,3 +28,5 @@ Install Atlantis following their [installation guide](https://www.runatlantis.io
 To use Atlantis to the fullest, we'll have to set up the correct workflows, projects and their powerful autoplan feature. This repo contains an example setup based on the values file that accompanies Atlantis' Helm Chart. All information can be re-used in different setups, but the syntax will most definitely not be the same. 
 
 The example uses a Github App. This would be the most secure way of linking your Atlantis service to your Github projects. Any secrets will have to be added through a vault (e.g. [Hashicorp Vault](https://www.vaultproject.io/)) or an external secrets manager.
+
+> **Note**: Make sure you've set up the correct profiles in your server side setup (check [helm-atlantis-values.yaml](./helm-atlantis-values.yaml)) as those are a prerequisite for the provided Atlantis workflow.

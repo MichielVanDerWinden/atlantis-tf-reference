@@ -7,7 +7,7 @@
 atlantisUrl: https://atlantis.yourwebsite.com
 
 # Replace this with your own repo allowlist:
-orgAllowlist: github.com/{projectName}/*
+orgAllowlist: github.com/{companyName}/*
 
 # If using a GitHub App, please enter your values as follows:
 githubApp:
@@ -15,6 +15,7 @@ githubApp:
   slug: github-app-slug
 
 # To specify AWS credentials to be mapped to ~/.aws or to aws.directory:
+# Each profile we use corresponds to a specific folder in your `environments` folder of your tf project. An env flag will be set in the workflow which makes Atlantis automatically assume the role corresponding to this profile.
 aws:
   credentials: |
     [default]
@@ -38,10 +39,14 @@ aws:
 ## Use Server Side Repo Config,
 ## ref: https://www.runatlantis.io/docs/server-side-repo-config.html
 ## Example default configuration
+
+# The repoConfig workflow contains three crucial steps for properly switching between your AWS accounts. 
+# First and foremost, two steps will unset $AWS_WEB_IDENTITY_TOKEN_FILE and $AWS_ROLE_ARN as Atlantis' AWS-Go-module currently uses the wrong precedence of environment variables.
+# The last step actually sets the AWS_PROFILE to the name of the folder in your `environments` folder of your tf project. Afterwards, Atlantis' own init and apply are used wherever necessary.
 repoConfig: |
   ---
   repos:
-    - id: github.com/{projectName}/{slug}
+    - id: github.com/{companyName}/{projectName}
       allowed_overrides: []
       workflow: infra
   workflows:
